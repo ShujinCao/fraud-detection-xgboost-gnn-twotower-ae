@@ -1,2 +1,7 @@
-# fraud-detection-xgboost-gnn-twotower-ae
-Insurance Claims Fraud Detection System - A Modernized Multi-Signal Pipeline with Autoencoder, Two-Tower Embeddings, GNN, and XGBoost
+# Modernized Insurance Claims Fraud Detection (Autoencoder · Two-Tower · GNN · XGBoost)
+This project modernizes a legacy insurance-claims fraud detection workflow by integrating
+Autoencoder anomaly scores, Two-Tower (Claimant × Provider) embeddings, and GNN-derived graph
+features into an XGBoost model for calibrated fraud-risk scoring. 
+
+
+
