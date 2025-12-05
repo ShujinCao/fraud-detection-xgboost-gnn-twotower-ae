@@ -1,0 +1,20 @@
+name: fraud-detection
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - pandas
+      - numpy
+      - scikit-learn
+      - xgboost
+      - torch
+      - fastapi
+      - uvicorn
+      - pydantic
+      - matplotlib
+      - seaborn
+      - jupyter
+
