@@ -49,8 +49,8 @@ def main():
         num_boost_round=500,
         valid_sets=[train_ds, val_ds],
         valid_names=["train", "val"],
-        early_stopping_rounds=50,
-        verbose_eval=50,
+        callbacks=[lgb.early_stopping(stopping_rounds=50),
+        lgb.log_evaluation(period=50),],
     )
 
     y_val_pred = model.predict(X_val, num_iteration=model.best_iteration)
