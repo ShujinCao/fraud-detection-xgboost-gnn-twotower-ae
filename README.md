@@ -5,8 +5,8 @@ features into an XGBoost model for calibrated fraud-risk scoring.
 
 ## Run with Docker
 ```
-docker build -t fraud-api .
-docker run -p 8000:8000 fraud-api
+docker build --no-cache -t fraud-api .
+docker run -p 8000:8000 -e PORT=8000 fraud-api
 ```
 
 ## Run locally
