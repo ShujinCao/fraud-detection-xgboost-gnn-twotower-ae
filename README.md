@@ -3,6 +3,19 @@ This project modernizes a legacy insurance-claims fraud detection workflow by in
 Autoencoder anomaly scores, Two-Tower (Claimant × Provider) embeddings, and GNN-derived graph
 features into an XGBoost model for calibrated fraud-risk scoring. 
 
+## Run with Docker
+```
+docker build -t fraud-api .
+docker run -p 8000:8000 fraud-api
+```
+
+## Run locally
+```
+conda env create -f environment.yml
+conda activate fraud-env
+uvicorn app:app --reload
+```
+
 ### Training order
 
 1. Synthetic data
