@@ -16,6 +16,21 @@ conda activate fraud-env
 uvicorn app:app --reload
 ```
 
+## Production architecture
+```
+         HF Spaces (UI)
+           ↓
+         Render API
+           ↓
+         Kafka
+           ↓
+         AWS Lambda
+           ↓
+        DynamoDB/S3
+           ↑
+         HF Spaces (UI)
+```
+
 ### Training order
 
 1. Synthetic data
