@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class TwoTowerModel(nn.Module):
     def __init__(self, n_claimants, n_providers, embed_dim):
@@ -10,6 +11,8 @@ class TwoTowerModel(nn.Module):
     def forward(self, claimant_ids, provider_ids):
         u = self.claimant_emb(claimant_ids)
         i = self.provider_emb(provider_ids)
-        scores = (u * i).sum(dim=1)
-        return scores, u, i
+        # L2-normalize for cosine-like similarity
+        u = F.normalize(u, p=2, dim=1)
+        i = F.normalize(i, p=2, dim=1)
+        return u, i
 
