@@ -6,7 +6,7 @@ logger = get_logger(__name__)
 
 def main():
     claims = pd.read_csv(DATA_RAW_DIR / "claims.csv")
-    ae = pd.read_csv(DATA_PROCESSED_DIR / "ae_scores.csv")
+    ae = pd.read_csv(DATA_PROCESSED_DIR / "ae_features.csv")          # updated
     tt = pd.read_csv(DATA_PROCESSED_DIR / "twotower_embeddings.csv")
     gnn = pd.read_csv(DATA_PROCESSED_DIR / "gnn_embeddings.csv")
 
