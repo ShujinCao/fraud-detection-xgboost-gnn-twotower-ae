@@ -10,32 +10,32 @@ from src.config import DATA_PROCESSED_DIR, MODELS_DIR
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
-app = FastAPI(title="FraudForge Simulation API")
+app = FastAPI(title="FraudForge API")
 
-# ------------------------------------------------------------
-# Root route (IMPORTANT for Render "Application loading" fix)
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# Root route (fix for Render — ensures 200 OK at "/")
+# -------------------------------------------------------------
 @app.get("/")
 def root():
     return {"message": "FraudForge API is running"}
 
-# ------------------------------------------------------------
-# Lazy-loaded global caches
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# Lazy-loaded caches
+# -------------------------------------------------------------
 training_df = None
 fraud_ts_df = None
-claimant_ts_df_cache = {}
+claimant_ts_cache = {}
 provider_risk_df = None
-gnn_cluster_df = None
+gnn_df = None
 lgb_model = None
 
-# ------------------------------------------------------------
-# Utility lazy-loaders
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# Lazy-load helpers
+# -------------------------------------------------------------
 def load_training_table():
     global training_df
     if training_df is None:
-        logger.info("Loading training_table.csv...")
+        logger.info("Loading training table...")
         training_df = pd.read_csv(DATA_PROCESSED_DIR / "training_table.csv")
     return training_df
 
@@ -45,21 +45,21 @@ def load_fraud_timeseries():
         logger.info("Loading sim_claim_timeseries.csv...")
         fraud_ts_df = pd.read_csv(
             DATA_PROCESSED_DIR / "sim_claim_timeseries.csv",
-            parse_dates=["timestamp"],
+            parse_dates=["timestamp"]
         )
     return fraud_ts_df
 
 def load_claimant_timeseries(claimant_id: int):
-    global claimant_ts_df_cache
-    if claimant_id not in claimant_ts_df_cache:
+    global claimant_ts_cache
+    if claimant_id not in claimant_ts_cache:
         logger.info(f"Loading claimant timeline for {claimant_id}...")
         df = pd.read_csv(
             DATA_PROCESSED_DIR / "sim_claimant_timeseries.csv",
-            parse_dates=["timestamp"],
+            parse_dates=["timestamp"]
         )
-        df = df[df["claimant_id"] == claimant_id]
-        claimant_ts_df_cache[claimant_id] = df.sort_values("timestamp")
-    return claimant_ts_df_cache[claimant_id]
+        df = df[df["claimant_id"] == claimant_id].sort_values("timestamp")
+        claimant_ts_cache[claimant_id] = df
+    return claimant_ts_cache[claimant_id]
 
 def load_provider_risk():
     global provider_risk_df
@@ -69,23 +69,22 @@ def load_provider_risk():
     return provider_risk_df
 
 def load_gnn_clusters():
-    global gnn_cluster_df
-    if gnn_cluster_df is None:
-        logger.info("Loading sim_gnn_clusters.csv...")
-        gnn_cluster_df = pd.read_csv(DATA_PROCESSED_DIR / "sim_gnn_clusters.csv")
-    return gnn_cluster_df
+    global gnn_df
+    if gnn_df is None:
+        logger.info("Loading sim_gnn_clusters.csv (DBSCAN results)...")
+        gnn_df = pd.read_csv(DATA_PROCESSED_DIR / "sim_gnn_clusters.csv")
+    return gnn_df
 
 def get_lgb_model():
     global lgb_model
     if lgb_model is None:
         logger.info("Loading LightGBM model fraud_lgbm.txt...")
-        model_path = MODELS_DIR / "fraud_lgbm.txt"
-        lgb_model = lgb.Booster(model_file=str(model_path))
+        lgb_model = lgb.Booster(model_file=str(MODELS_DIR / "fraud_lgbm.txt"))
     return lgb_model
 
-# ------------------------------------------------------------
-# API Schemas
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# API schema
+# -------------------------------------------------------------
 class ClaimFeatures(BaseModel):
     claim_id: int
     claimant_id: int
@@ -94,22 +93,24 @@ class ClaimFeatures(BaseModel):
     procedure_code: int
     days_since_last_claim: int
 
-# ------------------------------------------------------------
-# HEALTH CHECK
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# Health check
+# -------------------------------------------------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# ------------------------------------------------------------
-# Synchronous scoring endpoint
-# (NOT used by HF dashboard, but useful for demo)
-# ------------------------------------------------------------
+# -------------------------------------------------------------
+# Direct LGB scoring demo
+# -------------------------------------------------------------
 @app.post("/score_sync")
 def score_sync(claim: ClaimFeatures):
     df_train = load_training_table()
-    feature_cols = [c for c in df_train.columns if c not in 
-                    ["claim_id", "claimant_id", "provider_id", "is_fraud"]]
+
+    feature_cols = [
+        c for c in df_train.columns 
+        if c not in ["claim_id", "claimant_id", "provider_id", "is_fraud"]
+    ]
 
     row = df_train[df_train["claim_id"] == claim.claim_id]
 
@@ -124,10 +125,9 @@ def score_sync(claim: ClaimFeatures):
 
     return {"fraud_risk_score": prob}
 
-# ------------------------------------------------------------
-# Simulation Endpoints (HF Dashboard)
-# ------------------------------------------------------------
-
+# -------------------------------------------------------------
+# Streaming Dashboard Endpoints
+# -------------------------------------------------------------
 @app.get("/charts/fraud_trend")
 def fraud_trend(limit: int = 500):
     df = load_fraud_timeseries().sort_values("timestamp").tail(limit)
@@ -135,8 +135,8 @@ def fraud_trend(limit: int = 500):
         "timestamp": df["timestamp"].astype(str).tolist(),
         "fraud_score": df["fraud_score"].tolist(),
         "anomaly_score": df["anomaly_score"].tolist(),
-        "gnn_risk": df["gnn_risk"].tolist(),
-        "claimant_id": df["claimant_id"].tolist(),  # useful for HF sample selection
+        "gnn_risk": [],  # optional if needed later
+        "claimant_id": df["claimant_id"].tolist(),
     }
 
 @app.get("/charts/anomalies")
@@ -151,11 +151,14 @@ def anomalies(limit: int = 500, threshold: float = 0.95):
 
 @app.get("/charts/provider_risk")
 def provider_risk():
-    df = load_provider_risk().sort_values("avg_fraud", ascending=False).head(20)
+    df = load_provider_risk()
+    df_top = df.sort_values("combined_risk", ascending=False).head(10)
+
     return {
-        "provider_id": df["provider_id"].tolist(),
-        "avg_fraud": df["avg_fraud"].tolist(),
-        "max_anomaly": df["max_anomaly"].tolist(),
+        "provider_id": df_top["provider_id"].tolist(),
+        "avg_fraud": df_top["avg_fraud"].tolist(),
+        "max_anomaly": df_top["max_anomaly"].tolist(),
+        "combined_risk": df_top["combined_risk"].tolist(),
     }
 
 @app.get("/charts/claimant_timeline")
@@ -165,7 +168,6 @@ def claimant_timeline(claimant_id: int, limit: int = 200):
         "timestamp": df["timestamp"].astype(str).tolist(),
         "fraud_score": df["fraud_score"].tolist(),
         "anomaly_score": df["anomaly_score"].tolist(),
-        "gnn_risk": df["gnn_risk"].tolist(),
     }
 
 @app.get("/charts/gnn_clusters")
@@ -175,6 +177,7 @@ def gnn_clusters():
         "x": df["x"].tolist(),
         "y": df["y"].tolist(),
         "cluster": df["cluster"].tolist(),
+        "outlier": df["outlier"].tolist(),
         "fraud_score": df["fraud_score"].tolist(),
         "claim_id": df["claim_id"].tolist(),
     }
