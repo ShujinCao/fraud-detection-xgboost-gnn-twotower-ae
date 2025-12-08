@@ -41,7 +41,7 @@ def main():
     print("Assigning timestamps...")
     base = pd.Timestamp.today().normalize()  # midnight today
     df = df.sort_values("claim_id").reset_index(drop=True)
-    df["timestamp"] = [base + pd.Timedelta(minutes=i) for i in range(len(df))]
+    df["timestamp"] = [base + pd.Timedelta(seconds=i) for i in range(len(df))]
 
     # Save claim-level time series
     ts_path = DATA_PROCESSED_DIR / "sim_claim_timeseries.csv"
