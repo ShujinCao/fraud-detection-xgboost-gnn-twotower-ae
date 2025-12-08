@@ -135,7 +135,6 @@ def fraud_trend(limit: int = 500):
         "timestamp": df["timestamp"].astype(str).tolist(),
         "fraud_score": df["fraud_score"].tolist(),
         "anomaly_score": df["anomaly_score"].tolist(),
-        "gnn_risk": [],  # optional if needed later
         "claimant_id": df["claimant_id"].tolist(),
     }
 
