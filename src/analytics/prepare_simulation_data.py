@@ -81,26 +81,52 @@ def main():
     claimant_ts_path = DATA_PROCESSED_DIR / "sim_claimant_timeseries.csv"
     df_ts.to_csv(claimant_ts_path, index=False)
     print(f"Wrote {claimant_ts_path}")
-
+    
     # -------------------------------------------------------------
-    # GNN cluster visualization (DBSCAN anomaly detector)
+    # GNN cluster visualization (DBSCAN anomaly + fraud-ring injection)
     # -------------------------------------------------------------
-    print("Preparing GNN anomaly visualization with DBSCAN...")
-
+    print("Preparing GNN anomaly visualization with synthetic outliers...")
+    
     # Extract GNN embedding columns
     gnn_cols = [c for c in df.columns if c.startswith("gnn_emb_")]
-    X = df[gnn_cols].values
-
-    # PCA → 2D for visualization
+    X = df[gnn_cols].values.astype(float)
+    
+    # -------------------------------
+    # STEP 1: Inject synthetic anomalies
+    # -------------------------------
+    num_nodes = X.shape[0]
+    num_anomalies = max(5, num_nodes // 50)   # ≈ 2% anomalies
+    rng = np.random.default_rng(42)
+    anomaly_indices = rng.choice(num_nodes, size=num_anomalies, replace=False)
+    
+    # Inject large random noise into selected embeddings
+    # Makes them stand far away in embedding space
+    X[anomaly_indices] += rng.normal(loc=15.0, scale=4.0, size=X[anomaly_indices].shape)
+    
+    # Also optionally inject a small "fraud ring" micro-cluster
+    num_ring = max(3, num_nodes // 100)       # ~1%
+    ring_indices = rng.choice(num_nodes, size=num_ring, replace=False)
+    ring_center = rng.normal(loc=8.0, scale=1.0, size=X.shape[1])
+    X[ring_indices] = ring_center + rng.normal(loc=0.0, scale=0.5, size=X[ring_indices].shape)
+    
+    # -------------------------------
+    # STEP 2: PCA to 2D
+    # -------------------------------
     pca = PCA(n_components=2)
     X2 = pca.fit_transform(X)
-
-    # DBSCAN for outlier detection
+    
+    # -------------------------------
+    # STEP 3: DBSCAN anomaly detection
+    # -------------------------------
     dbscan = DBSCAN(eps=0.3, min_samples=10)
     labels = dbscan.fit_predict(X2)
+    
+    # outlier flag
     outlier = (labels == -1).astype(int)
-
-    # Prepare visualization dataframe
+    
+    # -------------------------------
+    # STEP 4: Build visualization table
+    # -------------------------------
     gnn_vis = pd.DataFrame({
         "x": X2[:, 0],
         "y": X2[:, 1],
@@ -109,7 +135,7 @@ def main():
         "fraud_score": df["fraud_score"],
         "claim_id": df["claim_id"],
     })
-
+    
     gnn_path = DATA_PROCESSED_DIR / "sim_gnn_clusters.csv"
     gnn_vis.to_csv(gnn_path, index=False)
     print(f"Wrote {gnn_path}")
