@@ -5,6 +5,9 @@ This project modernizes a legacy insurance-claims fraud detection workflow by in
 Autoencoder anomaly scores, Two-Tower (Claimant × Provider) embeddings, and GNN-derived graph
 features into an LightGMB model for calibrated fraud-risk scoring. 
 
+## Hugging Face fraud-detection dashboard: 
+https://huggingface.co/spaces/ShujinCao/fraud-detector-streaming-dashboard
+
 ## Run with Docker
 ```
 docker build --no-cache -t fraud-api .
