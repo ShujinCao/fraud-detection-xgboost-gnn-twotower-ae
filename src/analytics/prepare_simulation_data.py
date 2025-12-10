@@ -118,7 +118,7 @@ def main():
     # -------------------------------
     # STEP 3: DBSCAN anomaly detection
     # -------------------------------
-    dbscan = DBSCAN(eps=0.3, min_samples=10)
+    dbscan = DBSCAN(eps=2, min_samples=6)
     labels = dbscan.fit_predict(X2)
     
     # outlier flag
