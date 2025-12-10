@@ -69,6 +69,10 @@ def main():
     provider_risk["combined_risk"] = (
         provider_risk["avg_fraud"] + provider_risk["max_anomaly"]
     )
+    # Replace provider_id with realistic-looking IDs (NPI-style)
+    provider_risk["provider_id"] = provider_risk["provider_id"].apply(
+        lambda x: f"NPI-{10000000 + x}"
+    )
 
     prov_path = DATA_PROCESSED_DIR / "sim_provider_risk.csv"
     provider_risk.to_csv(prov_path, index=False)
